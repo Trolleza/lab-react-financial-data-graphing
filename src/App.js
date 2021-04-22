@@ -1,12 +1,15 @@
-import logo from './logo.svg';
-import './App.css';
+import logo from "./logo.svg";
+import "./App.css";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-import ChartBox from './components/ChartBox'
+import ChartBox from "./components/ChartBox";
 
 function App() {
   return (
     <div className="App">
-      <ChartBox/>
+      <div className="container">
+        <ChartBox />
+      </div>
     </div>
   );
 }

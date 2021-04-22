@@ -1,69 +1,149 @@
-import React, { Component } from "react";
+import React from "react";
+import Chart from "chart.js/auto";
 import axios from "axios";
-import { Chart } from "chart.js";
 
-export default class ChartBox extends Component {
+class ChartBox extends React.Component {
   state = {
-    data: [],
-    chart: "",
+    dates: [],
+    values: [],
+    filter: {
+      startDate: "",
+      endDate: "",
+      currency: "",
+    },
+    chart: null,
   };
 
   componentDidMount = async () => {
     try {
-      const downloadedData = await axios.get(
-        "http://api.coindesk.com/v1/bpi/historical/close.json"
-      );
-      this.setState({ data: downloadedData.data.bpi });
-      this.renderGraphic();
-      console.log(this.state.data);
+      await this.getData();
+
+      this.renderChart();
     } catch (err) {
       console.error(err);
     }
   };
 
   componentDidUpdate = async (prevProps, prevState) => {
-    if (prevState.chart !== this.state.chart) {
-      this.renderGraphic();
+    if (
+      prevState.filter.startDate !== this.state.filter.startDate ||
+      prevState.filter.endDate !== this.state.filter.endDate ||
+      prevState.filter.currency !== this.state.filter.currency
+    ) {
+      try {
+        await this.getData();
+
+        this.renderChart();
+      } catch (err) {
+        console.error(err);
+      }
     }
   };
 
-  renderGraphic = () => {
-    let ctx = document.getElementById("myChart");
-    let myChart = new Chart (ctx, {
-      type: "bar",
+  getData = async () => {
+    const dateString =
+      this.state.filter.startDate && this.state.filter.endDate
+        ? `start=${this.state.filter.startDate}&end=${this.state.filter.endDate}`
+        : "";
+
+    const fullFilterString = this.state.filter.currency
+      ? `${dateString}&currency=${this.state.filter.currency}`
+      : "";
+
+    const response = await axios.get(
+      `https://api.coindesk.com/v1/bpi/historical/close.json?${fullFilterString}`
+    );
+
+    console.log(response);
+
+    this.setState({
+      dates: Object.keys(response.data.bpi),
+      values: Object.values(response.data.bpi),
+    });
+  };
+
+  renderChart = () => {
+    if (this.state.chart) {
+      this.state.chart.destroy();
+    }
+    const ctx = document.getElementById("chart").getContext("2d");
+    const chartInstance = new Chart(ctx, {
+      type: "line",
       data: {
-        labels: [1, 2, 3],
+        labels: this.state.dates,
         datasets: [
           {
-            label: "Transactions in the period",
-            data: [1, 2, 3],
-            backgroundColor: "#5EBA7D",
-            borderWidth: 1,
+            label: "Bitcoin Price",
+            data: this.state.values,
+            borderColor: ["#2258d6"],
+            backgroundColor: ["#2258d6"],
+            borderWidth: 3,
           },
         ],
       },
       options: {
         scales: {
-          yAxes: [
-            {
-              ticks: {
-                beginAtZero: true,
-              },
-            },
-          ],
+          y: {
+            beginAtZero: true,
+          },
         },
       },
     });
-    this.setState({ chart: myChart });
+
+    this.setState({ chart: chartInstance });
+  };
+
+  handleChange = (event) => {
+    const clone = { ...this.state };
+
+    clone.filter = { ...clone.filter, [event.target.name]: event.target.value };
+
+    this.setState({ ...clone });
   };
 
   render() {
-    console.log(this.state.chart);
+    console.log(this.state);
     return (
-      <canvas
-        id="myChart"
-        style={{ width: "400px", backgroundColor: "black" }}
-      ></canvas>
+      <div>
+        <div className="form-group">
+          <label>Starting date</label>
+          <input
+            type="date"
+            className="form-control"
+            name="startDate"
+            onChange={this.handleChange}
+            value={this.state.filter.startDate}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Ending date</label>
+          <input
+            type="date"
+            className="form-control"
+            name="endDate"
+            onChange={this.handleChange}
+            value={this.state.filter.endDate}
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Currency</label>
+          <select
+            className="form-control"
+            name="currency"
+            onChange={this.handleChange}
+            value={this.state.filter.currency}
+          >
+            <option value="USD">Dollar</option>
+            <option value="EUR">Euro</option>
+            <option value="BRL">Brazillian Real</option>
+          </select>
+        </div>
+        <canvas id="chart" width="200"></canvas>
+      </div>
     );
   }
 }
+
+export default ChartBox;
